@@ -9,9 +9,9 @@ on:
 jobs:
   scan:
     name: Scan Images
-    fail-fast: false
 
     strategy:
+        fail-fast: false
         matrix:
           version: [current, equuleus]  
 
