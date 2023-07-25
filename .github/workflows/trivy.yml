@@ -9,6 +9,7 @@ on:
 jobs:
   scan:
     name: Scan Images
+    fail-fast: false
 
     strategy:
         matrix:
