@@ -1,0 +1,2 @@
+# Do not bring in private cosign key
+cosign.key

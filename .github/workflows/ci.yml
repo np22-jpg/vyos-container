@@ -1,0 +1,72 @@
+name: Build and Push to GHCR
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 1 * * *" # Run once every day
+
+jobs:
+  build_and_push_docker_images:
+    name: Push Docker image to GHCR
+
+    permissions:
+      packages: write
+      contents: read
+
+    strategy:
+      matrix:
+        version: [current, equuleus]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3
+        with:
+          repository: vyos/vyos-build
+          ref: ${{ matrix.version }}
+
+      - name: Get the current date
+        id: date
+        run: echo "::set-output name=date::$(date -u +%Y%m%d%H%M%S)"
+
+      - name: Build Production Images
+        if: github.event_name != 'pull_request'
+        id: build-image
+        uses: redhat-actions/buildah-build@b4dc19b4ba891854660ab1f88a097d45aa158f76 # v2
+        with:
+          image: vyos
+          tags: ${{ matrix.version }} ${{ matrix.version}}-${{ steps.date.outputs.date }}
+          build-args: |
+            VYOS_VERSION=${{ matrix.version }} 
+            DEBIAN_VERSION=buster
+          containerfiles: |
+            ./docker-vyos/Dockerfile
+
+      # PUSH
+
+      - name: Push To GHCR
+        id: push-to-ghcr
+        uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2
+        with:
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ghcr.io/${{ github.repository_owner }}
+
+      # SIGN
+      - uses: sigstore/cosign-installer@6e04d228eb30da1757ee4e1dd75a0ec73a653e06 # v3.1.1
+
+      - name: Sign GHCR Image
+        run: |
+          cosign login ghcr.io -u ${{ github.actor }} -p ${{ github.token }}
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY ghcr.io/${{ github.repository_owner }}/${{ steps.build-image.outputs.image }}@${GHCR_TAGS}
+        env:
+          COSIGN_EXPERIMENTAL: false
+          GHCR_TAGS: ${{ steps.push-to-ghcr.outputs.digest }}
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+      - name: Print image URLs
+        run: |
+          echo "Image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
