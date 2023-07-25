@@ -15,6 +15,7 @@ jobs:
       contents: read
 
     strategy:
+      fail-fast: false
       matrix:
         version: [current, equuleus]
 
