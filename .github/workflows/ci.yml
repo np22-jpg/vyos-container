@@ -34,7 +34,7 @@ jobs:
       - name: Build Production Images
         if: github.event_name != 'pull_request'
         id: build-image
-        uses: redhat-actions/buildah-build@b4dc19b4ba891854660ab1f88a097d45aa158f76 # v2
+        uses: redhat-actions/buildah-build@9dc2ade9b5db229966b5025ae266311e12f349c4 # v2
         with:
           image: vyos
           tags: ${{ matrix.version }} ${{ matrix.version}}-${{ steps.date.outputs.date }}
